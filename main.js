@@ -40,20 +40,22 @@ function Beautify(what,floats)//turns 9999999 into 9,999,999
 }
 function utf8_to_b64( str ) {
 	try{
-    return window.btoa(unescape(encodeURIComponent( str )));
+		return window.btoa(unescape(encodeURIComponent( str )));
 	}
 	catch(err)
 	{
+		alert('There was a problem while encrypting to base64.');
 		return '';
 	}
 }
 
 function b64_to_utf8( str ) {
 	try{
-    return decodeURIComponent(escape(window.atob( str )));
+		return decodeURIComponent(escape(window.atob( str )));
 	}
 	catch(err)
 	{
+		alert('There was a problem while decrypting from base64.');
 		return '';
 	}
 }
@@ -69,7 +71,8 @@ Game.Launch=function()
 		Game.T=0;
 		Game.fps=30;
 
-		Game.version=1.021;
+		Game.version=1.024;
+		l('versionNumber').innerHTML='v.'+Game.version;
 
 		//latency compensator stuff
 		Game.time=new Date().getTime();
@@ -94,6 +97,7 @@ Game.Launch=function()
 			Game.prefs.particles=1;
 			Game.prefs.numbers=1;
 			Game.prefs.autosave=1;
+			Game.prefs.autoupdate=1;
 		}
 		Game.DefaultPrefs();
 
@@ -103,9 +107,13 @@ Game.Launch=function()
 		}
 		Game.CheckUpdatesResponse=function(response)
 		{
-			if (parseInt(response)>Game.version)
+			var r=response.split['|'];
+			if (parseFloat(r[0])>Game.version)
 			{
-				l('alert').innerHTML='New version available : '+response+'!<br>Refresh to get it!';
+				var str='New version available : '+r[0]+'!';
+				if (r[1]) str+='<br>"'+r[1]+'"';
+				str+='<br>Refresh to get it!';
+				l('alert').innerHTML=str;
 				l('alert').style.display='block';
 			}
 		}
@@ -133,6 +141,7 @@ Game.Launch=function()
 			(Game.prefs.particles?'1':'0')+
 			(Game.prefs.numbers?'1':'0')+
 			(Game.prefs.autosave?'1':'0')+
+			(Game.prefs.autoupdate?'1':'0')+
 			'|';
 			str+=parseInt(Math.floor(Game.cookies))+';'+parseInt(Math.floor(Game.cookiesEarned))+'|';//cookies
 			for (var i in Game.Objects)//buildings
@@ -194,6 +203,7 @@ Game.Launch=function()
 						Game.prefs.particles=parseInt(spl[0]);
 						Game.prefs.numbers=parseInt(spl[1]);
 						Game.prefs.autosave=parseInt(spl[2]);
+						Game.prefs.autoupdate=spl[3]?parseInt(spl[3]):1;
 						spl=str[4].split(';');//cookies
 						Game.cookies=parseInt(spl[0]);Game.cookiesEarned=parseInt(spl[1]);
 						spl=str[5].split(';');//buildings
@@ -318,6 +328,7 @@ Game.Launch=function()
 			if (Game.Has('Million fingers')) add+=0.5;
 			if (Game.Has('Billion fingers')) add+=2;
 			if (Game.Has('Trillion fingers')) add+=10;
+			if (Game.Has('Quadrillion fingers')) add+=20;
 			var num=0;
 			for (var i in Game.Objects) {if (Game.Objects[i].name!='Cursor') num+=Game.Objects[i].amount;}
 			add=add*num;
@@ -335,6 +346,7 @@ Game.Launch=function()
 		}
 		l('bigCookie').onclick=Game.ClickCookie;
 
+		//falling cookies
 		Game.cookieParticles=[];
 		var str='';
 		for (var i=0;i<40;i++)
@@ -352,14 +364,14 @@ Game.Launch=function()
 				{
 					me.y+=me.life*0.5+Math.random()*0.5;
 					me.life++;
-					var el=l('cookieParticle'+i);
+					var el=me.l;
 					el.style.left=Math.floor(me.x)+'px';
 					el.style.top=Math.floor(me.y)+'px';
 					el.style.opacity=1-(me.life/(Game.fps*2));
 					if (me.life>=Game.fps*2)
 					{
 						me.life=-1;
-						l('cookieParticle'+i).style.opacity=0;
+						me.l.style.opacity=0;
 					}
 				}
 			}
@@ -384,21 +396,22 @@ Game.Launch=function()
 				var rect=l('cookieShower').getBoundingClientRect();
 				var x=Math.floor(Math.random()*(rect.right-rect.left));
 				var y=-32;
-				Game.cookieParticles[i].life=0;
-				Game.cookieParticles[i].x=x;
-				Game.cookieParticles[i].y=y;
-				var el=l('cookieParticle'+i);
+				var me=Game.cookieParticles[i];
+				if (!me.l) me.l=l('cookieParticle'+i);
+				me.life=0;
+				me.x=x;
+				me.y=y;
 				var r=Math.floor(Math.random()*360);
-				el.style.backgroundPosition=(Math.floor(Math.random()*8)*64)+'px 0px';
-				el.style.transform='rotate('+r+'deg)';
-				el.style.mozTransform='rotate('+r+'deg)';
-				el.style.webkitTransform='rotate('+r+'deg)';
-				el.style.msTransform='rotate('+r+'deg)';
-				el.style.oTransform='rotate('+r+'deg)';
+				me.l.style.backgroundPosition=(Math.floor(Math.random()*8)*64)+'px 0px';
+				me.l.style.transform='rotate('+r+'deg)';
+				me.l.style.mozTransform='rotate('+r+'deg)';
+				me.l.style.webkitTransform='rotate('+r+'deg)';
+				me.l.style.msTransform='rotate('+r+'deg)';
+				me.l.style.oTransform='rotate('+r+'deg)';
 			}
 		}
 
-
+		//rising numbers
 		Game.cookieNumbers=[];
 		var str='';
 		for (var i=0;i<20;i++)
@@ -416,7 +429,7 @@ Game.Launch=function()
 				{
 					me.y-=me.life*0.5+Math.random()*0.5;
 					me.life++;
-					var el=l('cookieNumber'+i);
+					var el=me.l;
 					el.style.left=Math.floor(me.x)+'px';
 					el.style.top=Math.floor(me.y)+'px';
 					el.style.opacity=1-(me.life/(Game.fps*1));
@@ -424,7 +437,7 @@ Game.Launch=function()
 					if (me.life>=Game.fps*1)
 					{
 						me.life=-1;
-						l('cookieNumber'+i).style.opacity=0;
+						me.l.style.opacity=0;
 					}
 				}
 			}
@@ -446,13 +459,15 @@ Game.Launch=function()
 			var i=highestI;
 			var x=-100+(Math.random()-0.5)*40;
 			var y=0+(Math.random()-0.5)*40;
-			Game.cookieNumbers[i].life=0;
-			Game.cookieNumbers[i].x=x;
-			Game.cookieNumbers[i].y=y;
-			Game.cookieNumbers[i].text=text;
-			l('cookieNumber'+i).innerHTML=text;
-			l('cookieNumber'+i).style.left=Math.floor(Game.cookieNumbers[i].x)+'px';
-			l('cookieNumber'+i).style.top=Math.floor(Game.cookieNumbers[i].y)+'px';
+			var me=Game.cookieNumbers[i];
+			if (!me.l) me.l=l('cookieNumber'+i);
+			me.life=0;
+			me.x=x;
+			me.y=y;
+			me.text=text;
+			me.l.innerHTML=text;
+			me.l.style.left=Math.floor(Game.cookieNumbers[i].x)+'px';
+			me.l.style.top=Math.floor(Game.cookieNumbers[i].y)+'px';
 		}
 
 		//generic particles
@@ -471,14 +486,14 @@ Game.Launch=function()
 				var me=Game.particles[i];
 				if (me.life!=-1)
 				{
-					var y=me.y-(1-Math.pow(1-me.life/Game.fps,4))*50;
+					var y=me.y-(1-Math.pow(1-me.life/(Game.fps*4),10))*50;
 					//me.y=me.life*0.25+Math.random()*0.25;
 					me.life++;
-					var el=l('particle'+i);
+					var el=me.l;
 					el.style.left=Math.floor(-200+me.x)+'px';
 					el.style.bottom=Math.floor(-y)+'px';
-					el.style.opacity=1-(me.life/(Game.fps*1));
-					if (me.life>=Game.fps*1)
+					el.style.opacity=1-(me.life/(Game.fps*4));
+					if (me.life>=Game.fps*4)
 					{
 						me.life=-1;
 						el.style.opacity=0;
@@ -502,22 +517,24 @@ Game.Launch=function()
 			}
 			var i=highestI;
 			var x=(Math.random()-0.5)*40;
-			var y=0+(Math.random()-0.5)*40;
+			var y=0;//+(Math.random()-0.5)*40;
 			if (!el)
 			{
 				var rect=l('game').getBoundingClientRect();
 				var x=Math.floor((rect.left+rect.right)/2);
 				var y=Math.floor((rect.bottom));
 				x+=(Math.random()-0.5)*40;
-				y+=(Math.random()-0.5)*40;
+				y+=0;//(Math.random()-0.5)*40;
 			}
-			Game.particles[i].life=0;
-			Game.particles[i].x=x;
-			Game.particles[i].y=y;
-			Game.particles[i].text=text;
-			l('particle'+i).innerHTML=text;
-			l('particle'+i).style.left=Math.floor(Game.particles[i].x-200)+'px';
-			l('particle'+i).style.bottom=Math.floor(-Game.particles[i].y)+'px';
+			var me=Game.particles[i];
+			if (!me.l) me.l=l('particle'+i);
+			me.life=0;
+			me.x=x;
+			me.y=y;
+			me.text=text;
+			me.l.innerHTML=text;
+			me.l.style.left=Math.floor(Game.particles[i].x-200)+'px';
+			me.l.style.bottom=Math.floor(-Game.particles[i].y)+'px';
 		}
 		Game.Popup=function(text)
 		{
@@ -589,6 +606,7 @@ Game.Launch=function()
 				'<div class="listing"><span class="warning" style="font-size:12px;">[Note : importing saves from earlier versions than 1.0 will be disabled beyond September 1st, 2013.]</span></div>'+
 				'<div class="title">Settings</div>'+
 				'<div class="listing">'+Game.WriteButton('particles','particlesButton','Particles ON','Particles OFF')+Game.WriteButton('numbers','numbersButton','Numbers ON','Numbers OFF')+'</div>'+
+				'<div class="listing">'+Game.WriteButton('autoupdate','autoupdateButton','Offline mode OFF','Offline mode ON')+' (note : this disables update notifications)</div>'+
 				//'<div class="listing">'+Game.WriteButton('autosave','autosaveButton','Autosave ON','Autosave OFF')+'</div>'+
 				'</div>'
 				;
@@ -597,10 +615,21 @@ Game.Launch=function()
 			{
 				str+='<div class="section">Updates</div>'+
 				'<div class="subsection">'+
+				'<div class="title">Now working on :</div>'+
+				'<div class="listing">-android port (iOS later)</span></div>'+
+
+				'</div><div class="subsection">'+
 				'<div class="title">What\'s next :</div>'+
 				'<div class="listing">-adding back missing features (more grandma types, grandmapocalypse</div>'+
 				'<div class="listing">-milk and achievements</div>'+
 				'<div class="listing">-dungeons</div>'+
+				'<div class="listing"><span class="warning">Note : because this is still an early release, expect to see prices and cookies/second vary wildly from one update to another.</span></div>'+
+
+				'</div><div class="subsection">'+
+				'<div class="title">26/08/2013 - more tweaks</div>'+
+				'<div class="listing">-tweaked a couple cursor upgrades</div>'+
+				'<div class="listing">-made time machines less powerful</div>'+
+				'<div class="listing">-added offline mode option</div>'+
 
 				'</div><div class="subsection">'+
 				'<div class="title">25/08/2013 - tweaks</div>'+
@@ -815,36 +844,54 @@ Game.Launch=function()
 
 				var animals=['newts','penguins','scorpions','axolotls','puffins','porpoises','blowfish','horses','crayfish','slugs','humpback whales','nurse sharks','giant squids','polar bears','fruit bats','frogs','sea squirts','velvet worms','mole rats','paramecia','nematodes','tardigrades','giraffes'];
 				if (Game.cookiesEarned>=10000) list.push(
-				'News : cookies found to '+choose(['increase lifespan','sensibly increase intelligence','reverse aging','decrease hair loss','prevent arthritis','cure blindness'])+' in '+choose(animals)+'!',
-				'News : cookies found to make '+choose(animals)+' '+choose(['more docile','more handsome','nicer','less hungry','more pragmatic','tastier'])+'!',
-				'News : cookies tested on '+choose(animals)+', found to have no ill effects.',
-				'News : cookies unexpectedly popular among '+choose(animals)+'!',
-				'News : unsightly lumps found on '+choose(animals)+' near cookie facility; "they\'ve pretty much always looked like that", say biologists.',
-				'News : new species of '+choose(animals)+' discovered in distant country; "yup, tastes like cookies", says biologist.',
-				'News : "'+choose(['I\'m all about cookies','I just can\'t stop eating cookies. I think I seriously need help','I guess I have a cookie problem','I\'m not addicted to cookies. That\'s just speculation by fans with too much free time','my upcoming album contains 3 songs about cookies','I\'ve had dreams about cookies 3 nights in a row now. I\'m a bit worried honestly','accusations of cookie abuse are only vile slander','cookies really helped me when I was feeling low','cookies are the secret behind my perfect skin','cookies helped me stay sane while filming my upcoming movie','cookies helped me stay thin and healthy','I\'ll say one word, just one : cookies','alright, I\'ll say it - I\'ve never eaten a single cookie in my life'])+'", reveals celebrity.',
+				'News : '+choose([
+					'cookies found to '+choose(['increase lifespan','sensibly increase intelligence','reverse aging','decrease hair loss','prevent arthritis','cure blindness'])+' in '+choose(animals)+'!',
+					'cookies found to make '+choose(animals)+' '+choose(['more docile','more handsome','nicer','less hungry','more pragmatic','tastier'])+'!',
+					'cookies tested on '+choose(animals)+', found to have no ill effects.',
+					'cookies unexpectedly popular among '+choose(animals)+'!',
+					'unsightly lumps found on '+choose(animals)+' near cookie facility; "they\'ve pretty much always looked like that", say biologists.',
+					'new species of '+choose(animals)+' discovered in distant country; "yup, tastes like cookies", says biologist.',
+					'cookies go well with roasted '+choose(animals)+', says controversial chef.',
+					'"do your cookies contain '+choose(animals)+'?", asks PSA warning against counterfeit cookies.'
+					]),
+				'News : "'+choose([
+					'I\'m all about cookies',
+					'I just can\'t stop eating cookies. I think I seriously need help',
+					'I guess I have a cookie problem',
+					'I\'m not addicted to cookies. That\'s just speculation by fans with too much free time',
+					'my upcoming album contains 3 songs about cookies',
+					'I\'ve had dreams about cookies 3 nights in a row now. I\'m a bit worried honestly',
+					'accusations of cookie abuse are only vile slander',
+					'cookies really helped me when I was feeling low',
+					'cookies are the secret behind my perfect skin',
+					'cookies helped me stay sane while filming my upcoming movie',
+					'cookies helped me stay thin and healthy',
+					'I\'ll say one word, just one : cookies',
+					'alright, I\'ll say it - I\'ve never eaten a single cookie in my life'
+					])+'", reveals celebrity.',
 				'News : '+choose(['doctors recommend twice-daily consumption of fresh cookies.','doctors warn against chocolate chip-snorting teen fad.','doctors advise against new cookie-free fad diet.','doctors warn mothers about the dangers of "home-made cookies".']),
-				'News : cookies go well with roasted '+choose(animals)+', says controversial chef.',
-				'News : "do your cookies contain '+choose(animals)+'?", asks PSA warning against counterfeit cookies.',
-				'News : scientist predicts imminent cookie-related "end of the world"; becomes joke among peers.',
-				'News : man robs bank, buys cookies.',
-				'News : what makes cookies taste so right? "Probably all the [*****] they put in them", says anonymous tipper.',
-				'News : man found allergic to cookies; "what a weirdo", says family.',
-				'News : foreign politician involved in cookie-smuggling scandal.',
-				'News : cookies now more popular than '+choose(['cough drops','broccoli','smoked herring','cheese','video games','stable jobs','relationships','time travel','cat videos','tango','fashion','television','nuclear warfare','whatever it is we ate before','politics','oxygen','lamps'])+', says study.',
-				'News : cookie shortage strikes town, people forced to eat cupcakes; "just not the same", concedes mayor.',
-				'News : "you gotta admit, all this cookie stuff is a bit ominous", says confused idiot.',
-				'News : movie cancelled from lack of actors; "everybody\'s at home eating cookies", laments director.',
-				'News : comedian forced to cancel cookie routine due to unrelated indigestion.',
-				'News : new cookie-based religion sweeps the nation.',
-				'News : fossil records show cookie-based organisms prevalent during Cambrian explosion, scientists say.',
-				'News : mysterious illegal cookies seized; "tastes terrible", says police.',
-				'News : man found dead after ingesting cookie; investigators favor "mafia snitch" hypothesis.',
-				'News : "the universe pretty much loops on itself," suggests researcher; "it\'s cookies all the way down."',
-				'News : minor cookie-related incident turns whole town to ashes; neighboring cities asked to chip in for reconstruction.',
-				'News : is our media controlled by the cookie industry? This could very well be the case, says crackpot conspiracy theorist.',
-				'News : '+choose(['cookie-flavored popcorn pretty damn popular; "we kinda expected that", say scientists.','cookie-flavored cereals break all known cereal-related records','cookies popular among all age groups, including fetuses, says study.','cookie-flavored popcorn sales exploded during screening of Grandmothers II : The Moistening.']),
-				'News : all-cookie restaurant opening downtown. Dishes such as braised cookies, cookie thermidor, and for dessert : crepes.',
-				'News : cookies could be the key to '+choose(['eternal life','infinite riches','eternal youth','eternal beauty','curing baldness','world peace','solving world hunger','ending all wars world-wide','making contact with extraterrestrial life','mind-reading','better living','better eating','more interesting TV shows','faster-than-light travel','quantum baking','chocolaty goodness','gooder thoughtness'])+', say scientists.'
+				choose([
+					'News : scientist predicts imminent cookie-related "end of the world"; becomes joke among peers.',
+					'News : man robs bank, buys cookies.',
+					'News : what makes cookies taste so right? "Probably all the [*****] they put in them", says anonymous tipper.',
+					'News : man found allergic to cookies; "what a weirdo", says family.',
+					'News : foreign politician involved in cookie-smuggling scandal.',
+					'News : cookies now more popular than '+choose(['cough drops','broccoli','smoked herring','cheese','video games','stable jobs','relationships','time travel','cat videos','tango','fashion','television','nuclear warfare','whatever it is we ate before','politics','oxygen','lamps'])+', says study.',
+					'News : cookie shortage strikes town, people forced to eat cupcakes; "just not the same", concedes mayor.',
+					'News : "you gotta admit, all this cookie stuff is a bit ominous", says confused idiot.',
+					'News : movie cancelled from lack of actors; "everybody\'s at home eating cookies", laments director.',
+					'News : comedian forced to cancel cookie routine due to unrelated indigestion.',
+					'News : new cookie-based religion sweeps the nation.',
+					'News : fossil records show cookie-based organisms prevalent during Cambrian explosion, scientists say.',
+					'News : mysterious illegal cookies seized; "tastes terrible", says police.',
+					'News : man found dead after ingesting cookie; investigators favor "mafia snitch" hypothesis.',
+					'News : "the universe pretty much loops on itself," suggests researcher; "it\'s cookies all the way down."',
+					'News : minor cookie-related incident turns whole town to ashes; neighboring cities asked to chip in for reconstruction.',
+					'News : is our media controlled by the cookie industry? This could very well be the case, says crackpot conspiracy theorist.',
+					'News : '+choose(['cookie-flavored popcorn pretty damn popular; "we kinda expected that", say scientists.','cookie-flavored cereals break all known cereal-related records','cookies popular among all age groups, including fetuses, says study.','cookie-flavored popcorn sales exploded during screening of Grandmothers II : The Moistening.']),
+					'News : all-cookie restaurant opening downtown. Dishes such as braised cookies, cookie thermidor, and for dessert : crepes.',
+					'News : cookies could be the key to '+choose(['eternal life','infinite riches','eternal youth','eternal beauty','curing baldness','world peace','solving world hunger','ending all wars world-wide','making contact with extraterrestrial life','mind-reading','better living','better eating','more interesting TV shows','faster-than-light travel','quantum baking','chocolaty goodness','gooder thoughtness'])+', say scientists.'
+					])
 				);
 			}
 
@@ -954,12 +1001,11 @@ Game.Launch=function()
 			this.sell=function()
 			{
 				var price=this.basePrice*Math.pow(Game.priceIncrease,this.amount);
-				price=Math.floor(price*0.25);
+				price=Math.floor(price*0.5);
 				if (this.amount>0)
 				{
 					Game.Earn(price);
 					this.amount--;
-					this.bought++;
 					price=this.basePrice*Math.pow(Game.priceIncrease,this.amount);
 					this.price=price;
 					if (this.drawFunction) this.drawFunction();
@@ -978,7 +1024,7 @@ Game.Launch=function()
 
 			if (this.id!=0)
 			{
-				var str='<div class="row" id="row'+this.id+'"><div class="separatorBottom"></div><div class="content"><div id="rowBackground'+this.id+'" class="background" style="background:url(img/'+this.background+'.png);"><div class="backgroundLeft"></div><div class="backgroundRight"></div></div><div class="objects" id="rowObjects'+this.id+'"> </div></div><div class="info" id="rowInfo'+this.id+'"><div id="rowInfoContent'+this.id+'"></div><div><a onclick="Game.ObjectsById['+this.id+'].sell();">Sell</a></div></div></div>';
+				var str='<div class="row" id="row'+this.id+'"><div class="separatorBottom"></div><div class="content"><div id="rowBackground'+this.id+'" class="background" style="background:url(img/'+this.background+'.png) repeat-x;"><div class="backgroundLeft"></div><div class="backgroundRight"></div></div><div class="objects" id="rowObjects'+this.id+'"> </div></div><div class="info" id="rowInfo'+this.id+'"><div id="rowInfoContent'+this.id+'"></div><div><a onclick="Game.ObjectsById['+this.id+'].sell();">Sell 1</a></div></div></div>';
 				l('rows').innerHTML=l('rows').innerHTML+str;
 			}
 
@@ -1044,6 +1090,7 @@ Game.Launch=function()
 			if (Game.Has('Million fingers')) add+=0.5;
 			if (Game.Has('Billion fingers')) add+=2;
 			if (Game.Has('Trillion fingers')) add+=10;
+			if (Game.Has('Quadrillion fingers')) add+=10;
 			var num=0;
 			for (var i in Game.Objects) {if (Game.Objects[i].name!='Cursor') num+=Game.Objects[i].amount;}
 			add=add*num;
@@ -1058,60 +1105,61 @@ Game.Launch=function()
 				str+='<div class="cursor" id="cursor'+i+'" style="left:'+x+'px;top:'+y+'px;transform:rotate('+r+'deg);-moz-transform:rotate('+r+'deg);-webkit-transform:rotate('+r+'deg);-ms-transform:rotate('+r+'deg);-o-transform:rotate('+r+'deg);"></div>';
 			}
 			l('cookieCursors').innerHTML=str;
-			if (!l('rowInfo'+this.id)) l('sectionLeftInfo').innerHTML='<div class="info" id="rowInfo'+this.id+'"><div id="rowInfoContent'+this.id+'"></div><div><a onclick="Game.ObjectsById['+this.id+'].sell();">Sell</a></div></div>';
+			if (!l('rowInfo'+this.id)) l('sectionLeftInfo').innerHTML='<div class="info" id="rowInfo'+this.id+'"><div id="rowInfoContent'+this.id+'"></div><div><a onclick="Game.ObjectsById['+this.id+'].sell();">Sell 1</a></div></div>';
 		},function(){
-			if (this.bought==1) Game.Unlock(['Reinforced index finger','Carpal tunnel prevention cream']);
-			else if (this.bought==10) Game.Unlock('Ambidextrous');
-			else if (this.bought==20) Game.Unlock('Thousand fingers');
-			else if (this.bought==40) Game.Unlock('Million fingers');
-			else if (this.bought==80) Game.Unlock('Billion fingers');
-			else if (this.bought==160) Game.Unlock('Trillion fingers');
+			if (this.amount>=1) Game.Unlock(['Reinforced index finger','Carpal tunnel prevention cream']);
+			if (this.amount>=10) Game.Unlock('Ambidextrous');
+			if (this.amount>=20) Game.Unlock('Thousand fingers');
+			if (this.amount>=40) Game.Unlock('Million fingers');
+			if (this.amount>=80) Game.Unlock('Billion fingers');
+			if (this.amount>=120) Game.Unlock('Trillion fingers');
+			if (this.amount>=160) Game.Unlock('Quadrillion fingers');
 		});
 
 		new Game.Object('Grandma','grandma|grandmas|baked','A nice grandma to bake more cookies.','grandma','grandmaIcon','grandmaBackground',100,function(){
 			return Game.ComputeCps(0.5,Game.Has('Forwards from grandma')*0.3,Game.Has('Steel-plated rolling pins')+Game.Has('Lubricated dentures'));
 		},Game.NewDrawFunction(0,8,8,32,3,16),function(){
-			if (this.bought==1) Game.Unlock(['Forwards from grandma','Steel-plated rolling pins']);if (this.bought==10) Game.Unlock('Lubricated dentures');
+			if (this.amount>=1) Game.Unlock(['Forwards from grandma','Steel-plated rolling pins']);if (this.bought>=10) Game.Unlock('Lubricated dentures');
 		});
 
 		new Game.Object('Farm','farm|farms|harvested','Grows cookie plants from cookie seeds.','farm','farmIcon','farmBackground',500,function(){
 			return Game.ComputeCps(2,Game.Has('Cheap hoes')*0.5,Game.Has('Fertilizer')+Game.Has('Cookie trees'));
 		},Game.NewDrawFunction(0,16,16,64,2,32),function(){
-			if (this.bought==1) Game.Unlock(['Cheap hoes','Fertilizer']);if (this.bought==10) Game.Unlock('Cookie trees');
+			if (this.amount>=1) Game.Unlock(['Cheap hoes','Fertilizer']);if (this.bought>=10) Game.Unlock('Cookie trees');
 		});
 
 		new Game.Object('Factory','factory|factories|produced','Produces large quantities of cookies.','factory','factoryIcon','factoryBackground',3000,function(){
 			return Game.ComputeCps(10,Game.Has('Sturdier conveyor belts')*4,Game.Has('Child labor')+Game.Has('Sweatshop'));
 		},Game.NewDrawFunction(0,32,2,64,1,-22),function(){
-			if (this.bought==1) Game.Unlock(['Sturdier conveyor belts','Child labor']);if (this.bought==10) Game.Unlock('Sweatshop');
+			if (this.amount>=1) Game.Unlock(['Sturdier conveyor belts','Child labor']);if (this.bought>=10) Game.Unlock('Sweatshop');
 		});
 
 		new Game.Object('Mine','mine|mines|mined','Mines out cookie dough and chocolate chips.','mine','mineIcon','mineBackground',10000,function(){
 			return Game.ComputeCps(40,Game.Has('Sugar gas')*10,Game.Has('Megadrill')+Game.Has('Ultradrill'));
 		},Game.NewDrawFunction(0,16,16,64,2,24),function(){
-			if (this.bought==1) Game.Unlock(['Sugar gas','Megadrill']);if (this.bought==10) Game.Unlock('Ultradrill');
+			if (this.amount>=1) Game.Unlock(['Sugar gas','Megadrill']);if (this.bought>=10) Game.Unlock('Ultradrill');
 		});
 
 		new Game.Object('Shipment','shipment|shipments|shipped','Brings in fresh cookies from the cookie planet.','shipment','shipmentIcon','shipmentBackground',40000,function(){
 			return Game.ComputeCps(100,Game.Has('Vanilla nebulae')*30,Game.Has('Wormholes')+Game.Has('Frequent flyer'));
 		},Game.NewDrawFunction(0,16,16,64),function(){
-			if (this.bought==1) Game.Unlock(['Vanilla nebulae','Wormholes']);if (this.bought==10) Game.Unlock('Frequent flyer');
+			if (this.amount>=1) Game.Unlock(['Vanilla nebulae','Wormholes']);if (this.bought>=10) Game.Unlock('Frequent flyer');
 		});
 
 		new Game.Object('Alchemy lab','alchemy lab|alchemy labs|transmuted','Turns gold into cookies!','alchemylab','alchemylabIcon','alchemylabBackground',200000,function(){
 			return Game.ComputeCps(400,Game.Has('Antimony')*100,Game.Has('Essence of dough')+Game.Has('True chocolate'));
 		},Game.NewDrawFunction(0,16,16,64,2,16),function(){
-			if (this.bought==1) Game.Unlock(['Antimony','Essence of dough']);if (this.bought==10) Game.Unlock('True chocolate');
+			if (this.amount>=1) Game.Unlock(['Antimony','Essence of dough']);if (this.bought>=10) Game.Unlock('True chocolate');
 		});
 		new Game.Object('Portal','portal|portals|retrieved','Opens a door to the Cookieverse.','portal','portalIcon','portalBackground',1666666,function(){
 			return Game.ComputeCps(6666,Game.Has('Ancient tablet')*1666,Game.Has('Insane oatling workers')+Game.Has('Soul bond'));
 		},Game.NewDrawFunction(0,32,32,64,2),function(){
-			if (this.bought==1) Game.Unlock(['Ancient tablet','Insane oatling workers']);if (this.bought==10) Game.Unlock('Soul bond');
+			if (this.amount>=1) Game.Unlock(['Ancient tablet','Insane oatling workers']);if (this.bought>=10) Game.Unlock('Soul bond');
 		});
 		new Game.Object('Time machine','time machine|time machines|recovered','Brings cookies from the past, before they were even eaten.','timemachine','timemachineIcon','timemachineBackground',123456789,function(){
-			return Game.ComputeCps(123456,Game.Has('Flux capacitors')*9876,Game.Has('Time paradox resolver')+Game.Has('Quantum conundrum'));
+			return Game.ComputeCps(98765,Game.Has('Flux capacitors')*9876,Game.Has('Time paradox resolver')+Game.Has('Quantum conundrum'));
 		},Game.NewDrawFunction(0,32,32,64,1),function(){
-			if (this.bought==1) Game.Unlock(['Flux capacitors','Time paradox resolver']);if (this.bought==10) Game.Unlock('Quantum conundrum');
+			if (this.amount>=1) Game.Unlock(['Flux capacitors','Time paradox resolver']);if (this.bought>=10) Game.Unlock('Quantum conundrum');
 		});
 
 
@@ -1213,19 +1261,19 @@ Game.Launch=function()
 			l('upgrades').innerHTML=str;
 		}
 
-		var tier1=5;
-		var tier2=50;
-		var tier3=200;
+		var tier1=10;
+		var tier2=100;
+		var tier3=500;
 
 		//define upgrades
 		//WARNING : do NOT add new upgrades in between, this breaks the saves. Add them at the end !
 		new Game.Upgrade('Reinforced index finger','The mouse gains <b>+1</b> cookie per click.<br>Cursors gain <b>+0.1</b> base CpS.<q>prod prod</q>',100,[0,0]);
 		new Game.Upgrade('Carpal tunnel prevention cream','The mouse and cursors are <b>twice</b> as efficient.',400,[0,0]);
 		new Game.Upgrade('Ambidextrous','The mouse and cursors are <b>twice</b> as efficient.<q>Look ma, both hands!</q>',10000,[0,1]);
-		new Game.Upgrade('Thousand fingers','The mouse and cursors gain <b>+0.1</b> cookies for each non-cursor object owned.<q>clickity</q>',50000,[0,1]);
-		new Game.Upgrade('Million fingers','The mouse and cursors gain <b>+0.5</b> cookies for each non-cursor object owned.<q>clickity</q>',5000000,[0,1]);
-		new Game.Upgrade('Billion fingers','The mouse and cursors gain <b>+2</b> cookies for each non-cursor object owned.<q>clickity</q>',50000000,[0,1]);
-		new Game.Upgrade('Trillion fingers','The mouse and cursors gain <b>+10</b> cookies for each non-cursor object owned.<q>clickity</q>',500000000,[0,1]);
+		new Game.Upgrade('Thousand fingers','The mouse and cursors gain <b>+0.1</b> cookies for each non-cursor object owned.<q>clickity</q>',500000,[0,1]);
+		new Game.Upgrade('Million fingers','The mouse and cursors gain <b>+0.5</b> cookies for each non-cursor object owned.<q>clickityclickity</q>',50000000,[0,1]);
+		new Game.Upgrade('Billion fingers','The mouse and cursors gain <b>+2</b> cookies for each non-cursor object owned.<q>clickityclickityclickity</q>',500000000,[0,1]);
+		new Game.Upgrade('Trillion fingers','The mouse and cursors gain <b>+10</b> cookies for each non-cursor object owned.<q>clickityclickityclickityclickity</q>',5000000000,[0,1]);
 
 		new Game.Upgrade('Forwards from grandma','Grandmas gain <b>+0.3</b> base CpS.<q>RE:RE:thought you\'d get a kick out of this ;))</q>',1000,[1,0]);
 		new Game.Upgrade('Steel-plated rolling pins','Grandmas are <b>twice</b> as efficient.',5000,[1,0]);
@@ -1267,10 +1315,12 @@ Game.Launch=function()
 		new Game.Upgrade('Coconut cookies','All cookie income <b>+5%</b>.',999999999,[3,3]);
 		new Game.Upgrade('White chocolate cookies','All cookie income <b>+5%</b>.',999999999,[4,3]);
 		new Game.Upgrade('Macadamia nut cookies','All cookie income <b>+5%</b>.',999999999,[5,3]);
-		new Game.Upgrade('Double-chip cookies','All cookie income <b>+10%</b>.',9999999999,[6,3]);
+		new Game.Upgrade('Double-chip cookies','All cookie income <b>+10%</b>.',99999999999,[6,3]);
 		new Game.Upgrade('Sugar cookies','All cookie income <b>+5%</b>.',99999999,[7,3]);
-		new Game.Upgrade('White chocolate macadamia nut cookies','All cookie income <b>+10%</b>.',9999999999,[8,3]);
-		new Game.Upgrade('All-chocolate cookies','All cookie income <b>+10%</b>.',9999999999,[9,3]);
+		new Game.Upgrade('White chocolate macadamia nut cookies','All cookie income <b>+10%</b>.',99999999999,[8,3]);
+		new Game.Upgrade('All-chocolate cookies','All cookie income <b>+10%</b>.',99999999999,[9,3]);
+
+		new Game.Upgrade('Quadrillion fingers','The mouse and cursors gain <b>+20</b> cookies for each non-cursor object owned.<q>clickityclickityclickityclickityclick</q>',50000000000,[0,1]);
 
 
 		Game.recalculateGains=1;
@@ -1329,7 +1379,7 @@ Game.Launch=function()
 				l('goldenCookie').style.opacity=1-Math.pow((Game.goldenCookie.life/(Game.fps*13))*2-1,4);
 				if (Game.goldenCookie.life==0)
 				{
-					Game.goldenCookie.delay=Math.ceil(Game.fps*60*(7+Math.floor(Math.random()*10)));
+					Game.goldenCookie.delay=Math.ceil(Game.fps*60*(5+Math.floor(Math.random()*10)));
 					l('goldenCookie').style.display='none';
 				}
 			}
@@ -1345,13 +1395,13 @@ Game.Launch=function()
 			var choice=choose(list);
 			if (choice=='frenzy')
 			{
-				Game.frenzy=Game.fps*10;
+				Game.frenzy=Game.fps*60;
 				Game.recalculateGains=1;
-				Game.Popup('Frenzy : cookie production x2 for 10 seconds!');
+				Game.Popup('Frenzy : cookie production x2 for 60 seconds!');
 			}
 			else if (choice=='multiply cookies')
 			{
-				var moni=Game.cookies*0.05+13;
+				var moni=Math.min(Game.cookies*0.1+13,Game.cookiesPs*60*30);//add 10% to cookies owned (+13), or 30 minutes of cookie production - whichever is lowest
 				Game.Earn(moni);
 				Game.Popup('+'+Beautify(moni)+' cookies');
 			}
@@ -1401,7 +1451,7 @@ Game.Launch=function()
 		Game.goldenCookie.update();
 
 		if (Game.T%(Game.fps*30)==0 && Game.T>Game.fps*10 && Game.prefs.autosave) Game.WriteSave();
-		if (Game.T%(Game.fps*60*30)==0 && Game.T>Game.fps*10) Game.CheckUpdates();
+		if (Game.T%(Game.fps*60*30)==0 && Game.T>Game.fps*10 && Game.prefs.autoupdate) Game.CheckUpdates();
 
 		Game.T++;
 	}
