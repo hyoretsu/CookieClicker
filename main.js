@@ -1,4 +1,3 @@
-
 function eventFire(el, etype){
   if (el.fireEvent) {
     (el.fireEvent('on' + etype));
@@ -12,31 +11,128 @@ function eventFire(el, etype){
 function l(what) {return document.getElementById(what);}
 
 Game=l('game');
-Version=0.12;
+Version=0.124;
+l('version').innerHTML='running v.'+Version;
 Loaded=0;
+
+function Beautify(what)//turns 9999999 into 9,999,999
+{
+	var str='';
+	what=Math.floor(what);
+	what=(what+'').split('').reverse();
+	for (var i in what)
+	{
+		if (i%3==0 && i>0) str=','+str;
+		str=what[i]+str;
+	}
+	return str;
+}
+
+//CookieSave='<?php echo ($_COOKIE['CookieClickerSave']?('1|'.$_COOKIE['CookieClickerSave']):'0'); ?>';
+
+var str='';
+var pics=['cursor','grandma','mine','factory','lab','shipment','golderngrandma','grandmaiconinvert','grandmaiconlustful','portal','skellington','kaleigrandma','factorygrandma','minegrandma','shipmentgrandma','portalgrandma','pledgedgrandma','pledgeicon'];
+for (var i in pics) {str+='<img src="'+pics[i]+'.png"/>';}
+l('hiddenLoader').innerHTML=str;
+
+Cookies=0;
+CookiesDisplay=0;
+Clicking=0;
+Hovering=0;
+T=0;
+
+Cursors=0;
+Grandmas=0;
+Factories=0;
+Mines=0;
+Shipments=0;
+Labs=0;
+Portals=0;
+
+Pledge=0;
+
+NumbersOn=1;
+
+StoreToRebuild=0;
+
+function ToggleNumbers()
+{
+	if (NumbersOn) {NumbersOn=0;l('toggleNumbers').innerHTML='Numbers Off';}
+	else if (!NumbersOn) {NumbersOn=1;l('toggleNumbers').innerHTML='Numbers On';}
+}
+
+
+importSave=function()
+{
+	var save=prompt('Please paste in the text that was given to you on save export.','');
+	if (save && save!='') ImportResponse('1|'+save);
+	Save();
+}
+exportSave=function()
+{
+	var save=prompt('Copypaste this text and keep it somewhere safe! (yes, it\'s easy to edit - but remember : cheated cookies taste terrible!)',MakeSaveString());
+}
+
+ImportResponse=function(response)
+{
+	var r=response.split('|');
+	if (response!='0' && response)
+	{
+		if (r[0]=='1')
+		{
+			Cookies=parseInt(r[2]);
+			Pledge=0;
+			Cursors=Math.min(1000000,parseInt(r[3]));Buyables['Cursor'].price=parseInt(r[4]);
+			Grandmas=Math.min(1000000,parseInt(r[5]));Buyables['Grandma'].price=parseInt(r[6]);
+			Factories=Math.min(1000000,parseInt(r[7]));Buyables['Factory'].price=parseInt(r[8]);
+			Mines=Math.min(1000000,parseInt(r[9]));Buyables['Mine'].price=parseInt(r[10]);
+			Shipments=Math.min(1000000,parseInt(r[11]));Buyables['Shipment'].price=parseInt(r[12]);
+			Labs=Math.min(1000000,parseInt(r[13]));Buyables['Alchemy lab'].price=parseInt(r[14]);
+			if (r[15]) {Portals=Math.min(1000000,parseInt(r[15]));Buyables['Portal'].price=parseInt(r[16]);}
+			Buyables['Grandma'].func(0);
+			Buyables['Factory'].func(0);
+			Buyables['Mine'].func(0);
+			Buyables['Shipment'].func(0);
+			Buyables['Alchemy lab'].func(0);
+			Buyables['Portal'].func(0);
+			Pledge=0;
+			StoreToRebuild=1;
+		}
+	}
+	new Pop('credits','Imported.');
+}
+
+
 
 Reset=function()
 {
-	ajax('backend.php?q=reset',ResetResponse);
+	if (confirm('Do you REALLY want to start over?')) ajax('backend.php?q=reset',ResetResponse);
 }
 ResetResponse=function()
 {
 	location.reload(true);
 }
 
-Save=function()
+MakeSaveString=function()
 {
 	var str='';
-	str+=Version+'|'+Cookies+'|'+
-	Cursors+'|'+Buyables['Cursor'].price+'|'+
-	Grandmas+'|'+Buyables['Grandma'].price+'|'+
-	Factories+'|'+Buyables['Factory'].price+'|'+
-	Mines+'|'+Buyables['Mine'].price+'|'+
-	Shipments+'|'+Buyables['Shipment'].price+'|'+
-	Labs+'|'+Buyables['Alchemy lab'].price+'|'+
-	Portals+'|'+Buyables['Portal'].price;
+	str+=Version+'|'+parseInt(Cookies)+'|'+
+	parseInt(Cursors)+'|'+parseInt(Buyables['Cursor'].price)+'|'+
+	parseInt(Grandmas)+'|'+parseInt(Buyables['Grandma'].price)+'|'+
+	parseInt(Factories)+'|'+parseInt(Buyables['Factory'].price)+'|'+
+	parseInt(Mines)+'|'+parseInt(Buyables['Mine'].price)+'|'+
+	parseInt(Shipments)+'|'+parseInt(Buyables['Shipment'].price)+'|'+
+	parseInt(Labs)+'|'+parseInt(Buyables['Alchemy lab'].price)+'|'+
+	parseInt(Portals)+'|'+parseInt(Buyables['Portal'].price);
+	return str;
+}
 
+SaveTimer=30*60;
+Save=function()
+{
+	var str=MakeSaveString();
 	ajax('backend.php?q=save|'+str,SaveResponse);
+	SaveTimer=30*60*2;
 }
 
 SaveResponse=function(response)
@@ -47,36 +143,40 @@ SaveResponse=function(response)
 		l('alert').style.visibility='visible';
 		l('alert').innerHTML='New version available ('+r[1]+').<br>Please refresh to see it!';
 	}
-	new Pop('credits','Saved');
+	if (r[0]=='1') new Pop('credits','Saved');
+	else new Pop('credits','<span style="color:#f00;">Error while saving</span>');
 }
 
 Load=function()
 {
 	ajax('backend.php?q=load',LoadResponse);
+	l('comment').innerHTML='Loading cookie...';
+	//LoadResponse(CookieSave);
 }
 
 LoadResponse=function(response)
 {
 	var r=response.split('|');
-	if (response!='0')
+	if (response!='0' && response)
 	{
 		if (r[0]=='1')
 		{
 			Cookies=parseInt(r[2]);
-			Cursors=parseInt(r[3]);Buyables['Cursor'].price=parseInt(r[4]);
-			Grandmas=parseInt(r[5]);Buyables['Grandma'].price=parseInt(r[6]);
-			Factories=parseInt(r[7]);Buyables['Factory'].price=parseInt(r[8]);
-			Mines=parseInt(r[9]);Buyables['Mine'].price=parseInt(r[10]);
-			Shipments=parseInt(r[11]);Buyables['Shipment'].price=parseInt(r[12]);
-			Labs=parseInt(r[13]);Buyables['Alchemy lab'].price=parseInt(r[14]);
-			if (r[15]) {Portals=parseInt(r[15]);Buyables['Portal'].price=parseInt(r[16]);}
+			Pledge=0;
+			Cursors=Math.min(1000,parseInt(r[3]));Buyables['Cursor'].price=parseInt(r[4]);
+			Grandmas=Math.min(1000,parseInt(r[5]));Buyables['Grandma'].price=parseInt(r[6]);
+			Factories=Math.min(1000,parseInt(r[7]));Buyables['Factory'].price=parseInt(r[8]);
+			Mines=Math.min(1000,parseInt(r[9]));Buyables['Mine'].price=parseInt(r[10]);
+			Shipments=Math.min(1000,parseInt(r[11]));Buyables['Shipment'].price=parseInt(r[12]);
+			Labs=Math.min(1000,parseInt(r[13]));Buyables['Alchemy lab'].price=parseInt(r[14]);
+			if (r[15]) {Portals=Math.min(1000,parseInt(r[15]));Buyables['Portal'].price=parseInt(r[16]);}
 			Buyables['Grandma'].func(0);
 			Buyables['Factory'].func(0);
 			Buyables['Mine'].func(0);
 			Buyables['Shipment'].func(0);
 			Buyables['Alchemy lab'].func(0);
 			Buyables['Portal'].func(0);
-			RebuildStore();
+			StoreToRebuild=1;
 		}
 	}
 	new Pop('credits','Loaded.');
@@ -86,9 +186,10 @@ LoadResponse=function(response)
 
 ClickCookie=function()
 {
-	if (Pops.length<100) new Pop('cookie','+1');
+	var howmany=(Pledge>0?(Cursors*2):1);
+	Cookies+=howmany;
+	if (Pops.length<260 && NumbersOn) new Pop('cookie','+'+howmany);
 	Clicking=1;
-	Cookies++;
 }
 HoverCookie=function()
 {
@@ -98,19 +199,26 @@ HoverCookie=function()
 AddCookie=function(howmany,el)
 {
 	Cookies+=howmany;
-	if (el && Pops.length<250) new Pop(el,'+'+howmany);
+	if (el && Pops.length<250 && NumbersOn) new Pop(el,'+'+howmany);
 }
-
-
 
 RebuildStore=function()
 {
 	var str='';
 	for (var i in Buyables)
 	{
-		str+='<div id="buy'+Buyables[i].name+'" onclick="Buy(\''+Buyables[i].name+'\');" style="background-image:url('+Buyables[i].pic+'.png);"><b>'+Buyables[i].name+' - <moni></moni> '+Buyables[i].price+'</b>'+Buyables[i].desc+'</div>';
+		var amount=0;
+		if (Buyables[i].name=='Cursor') amount=Cursors;
+		else if (Buyables[i].name=='Grandma') amount=Grandmas;
+		else if (Buyables[i].name=='Factory') amount=Factories;
+		else if (Buyables[i].name=='Mine') amount=Mines;
+		else if (Buyables[i].name=='Shipment') amount=Shipments;
+		else if (Buyables[i].name=='Alchemy lab') amount=Labs;
+		else if (Buyables[i].name=='Portal') amount=Portals;
+		str+='<div id="buy'+Buyables[i].name+'" onclick="Buy(\''+Buyables[i].name+'\');" style="'+(Buyables[i].name=='Elder Pledge'?'display:none;':'')+'background-image:url('+Buyables[i].pic+'.png);"><b>'+Buyables[i].name+' - <moni></moni> '+Beautify(Buyables[i].price)+'</b>'+Buyables[i].desc+''+(amount>0?('<div class="amount">'+amount+'</div>'):'')+'</div>';
 	}
 	l('store').innerHTML=str;
+	StoreToRebuild=0;
 }
 Buyables=[];
 Buyable=function(name,desc,pic,price,func)
@@ -130,10 +238,10 @@ Buyable=function(name,desc,pic,price,func)
 			this.price=Math.ceil(this.price*1.1);
 			this.func(1);
 			//Buyables[this.name]=0;
-			RebuildStore();
+			StoreToRebuild=1;
 		}
 	}
-	RebuildStore();
+	StoreToRebuild=1;
 }
 Buy=function(what)
 {
@@ -149,13 +257,21 @@ new Buyable('Grandma','A nice grandma to bake more cookies.','grandmaicon',100,f
 	{
 		var x=Math.floor(Math.random()*20+(i%10)*24);
 		var y=Math.floor(Math.random()*20+Math.floor(i/10)*24);
-		str+='<div class="'+(Labs?'golden':'')+'grandma" style="left:'+x+'px;top:'+y+'px;"></div>';
+		var cl=0;
+		if (Labs && Math.random()<0.2) cl='goldengrandma';
+		if (Factories && Math.random()<0.2) cl='factorygrandma';
+		if (Mines && Math.random()<0.2) cl='minegrandma';
+		if (Shipments && Math.random()<0.2) cl='shipmentgrandma';
+		if (Portals && Pledge<=0 && Math.random()<0.2) cl='portalgrandma';
+		if (Pledge && Math.random()<0.2) cl='pledgedgrandma';
+		str+='<div class="'+(cl?cl+' ':'')+'grandma" style="left:'+x+'px;top:'+y+'px;"></div>';
 	}
 	l('grandmas').innerHTML=str;
 });
 new Buyable('Factory','Produces large quantities of cookies.','factoryicon',500,function(buy)
 {
 	if (buy) Factories++;
+	if (buy && Factories==1) Buyables['Grandma'].func();
 	var str='';
 	for (var i=0;i<Factories;i++)
 	{
@@ -168,6 +284,7 @@ new Buyable('Factory','Produces large quantities of cookies.','factoryicon',500,
 new Buyable('Mine','Mines out cookie dough and chocolate chips.','mineicon',2000,function(buy)
 {
 	if (buy) Mines++;
+	if (buy && Mines==1) Buyables['Grandma'].func();
 	var str='';
 	for (var i=0;i<Mines;i++)
 	{
@@ -180,6 +297,7 @@ new Buyable('Mine','Mines out cookie dough and chocolate chips.','mineicon',2000
 new Buyable('Shipment','Brings in fresh cookies from the cookie planet.','shipmenticon',7000,function(buy)
 {
 	if (buy) Shipments++;
+	if (buy && Shipments==1) Buyables['Grandma'].func();
 	var str='';
 	for (var i=0;i<Shipments;i++)
 	{
@@ -192,6 +310,7 @@ new Buyable('Shipment','Brings in fresh cookies from the cookie planet.','shipme
 new Buyable('Alchemy lab','Turns gold into cookies!','labicon',50000,function(buy)
 {
 	if (buy) Labs++;
+	if (buy && Labs==1) Buyables['Grandma'].func();
 	var str='';
 	for (var i=0;i<Labs;i++)
 	{
@@ -204,6 +323,7 @@ new Buyable('Alchemy lab','Turns gold into cookies!','labicon',50000,function(bu
 new Buyable('Portal','Opens a door to the Cookieverse.','portalicon',1000000,function(buy)
 {
 	if (buy) Portals++;
+	if (buy && Portals==1) Buyables['Grandma'].func();
 	var str='';
 	for (var i=0;i<Portals;i++)
 	{
@@ -212,6 +332,13 @@ new Buyable('Portal','Opens a door to the Cookieverse.','portalicon',1000000,fun
 		str+='<div class="portal" style="right:'+x+'px;top:'+y+'px;"></div>';
 	}
 	l('portals').innerHTML=str;
+});
+
+new Buyable('Elder Pledge','<span style="font-size:80%;">Puts an end to the Ancients\' wrath, at least for a while.</span>','pledgeicon',2666666,function(buy)
+{
+	if (buy) {Pledge*=2;Pledge+=30*60*30;}
+	if (buy) Buyables['Grandma'].func();
+	l('buyElder Pledge').style.display='none';
 });
 
 
@@ -226,25 +353,16 @@ Pop=function(el,str)
 	Pops.push(this);
 }
 
-Cookies=0;
-CookiesDisplay=0;
-Clicking=0;
-Hovering=0;
-T=0;
-
-Cursors=0;
-Grandmas=0;
-Factories=0;
-Mines=0;
-Shipments=0;
-Labs=0;
-Portals=0;
-
-
 
 Main=function()
 {
 	var str='';
+	if (StoreToRebuild)
+	{
+		RebuildStore();
+		StoreToRebuild=0;
+	}
+
 	for (var i in Pops)
 	{
 		var rect=l(Pops[i].el).getBoundingClientRect();
@@ -268,13 +386,30 @@ Main=function()
 	}
 	l('cookie').innerHTML=str;
 
+	var grandmaGain=Math.ceil(4+(Factories?1:0)+(Mines?2:0)+(Shipments?3:0)+(Labs?4:0)+(Portals?(Pledge?5+Portals*0.5:5):0));
+
 	if (Portals && T%Math.ceil(150/Portals)==0) AddCookie(6666,'portals');
 	if (Labs && T%Math.ceil(150/Labs)==0) AddCookie(500,'labs');
 	if (Shipments && T%Math.ceil(150/Shipments)==0) AddCookie(100,'shipments');
 	if (Mines && T%Math.ceil(150/Mines)==0) AddCookie(50,'mines');
 	if (Factories && T%Math.ceil(150/Factories)==0) AddCookie(20,'factories');
-	if (Grandmas && T%Math.ceil(150/Grandmas)==0) AddCookie((Labs?8:4),'grandmas');
+	if (Grandmas && T%Math.ceil(150/Grandmas)==0) AddCookie(grandmaGain,'grandmas');
 	if (Cursors && T%Math.ceil(150/Cursors)==0) eventFire(l('cookie'),'mouseup');
+
+
+	var cps=0;
+	cps+=Portals*6666/5;
+	cps+=Labs*500/5;
+	cps+=Shipments*100/5;
+	cps+=Mines*50/5;
+	cps+=Factories*20/5;
+	cps+=Grandmas*grandmaGain/5;
+	cps+=Cursors*1/5;
+
+	var floater=Math.round(cps*10-Math.floor(cps)*10);
+	cps=Beautify(cps)+(floater?('.'+floater):'');
+	l('cps').innerHTML='cookies/second : '+cps;
+
 
 	for (var i in Buyables)
 	{
@@ -282,7 +417,7 @@ Main=function()
 	}
 
 	CookiesDisplay+=(Cookies-CookiesDisplay)*0.5;
-	l('money').innerHTML=Math.round(CookiesDisplay);
+	l('money').innerHTML=Beautify(Math.round(CookiesDisplay));
 
 	var str='';
 	if (Cookies<5) str='You feel like making cookies.<br>But nobody wants to eat your cookies.';
@@ -306,22 +441,35 @@ Main=function()
 	l('comment').innerHTML=str;
 
 
+	if (Pledge>0) Pledge--;
 
-	if (Cookies>=1000000)
+	if (Cookies>=1000000 && Pledge<=0)
 	{
-		var icon='';
-		if (Cookies>2000000)
+		var r=(Cookies-1000000)/2000000;
+		var r2=Math.max(0,(Cookies-100000000)/400000000);
+		var icon='grandmaicon';
+		if (Cookies>=2000000)
 		{
-			if (Math.random()<0.02) icon='invert';
-			else if (Math.random()<0.02) icon='lustful';
+			l('buyElder Pledge').style.display='block';
+			if (Math.random()<0.02) icon='grandmaiconinvert';
+			else if (Math.random()<0.02) icon='grandmaiconlustful';
 		}
-		if (Math.random()<(Cookies-1000000)/2000000) l('whole').style.background='url(grandmaicon'+icon+') '+Math.floor(Math.random()*4)+'px '+Math.floor(Math.random()*4)+'px';
+		if (Cookies>=10000000 && Math.random()<0.02) icon='skellington';
+		if (Cookies>=1000000000) l('whole').style.background='url(kaleigrandma.png) '+Math.floor(T*0.2)+'px -'+Math.floor(T*0.1)+'px';
+		else if (Math.random()<r)
+		{
+			l('whole').style.background='url('+icon+'.png) '+Math.floor(Math.random()*4)+'px '+Math.floor(Math.random()*4)+'px';
+			l('whole').style.backgroundSize=Math.floor(r2*Math.random()*64+64)+'px '+Math.floor(r2*Math.random()*64+64)+'px ';
+		}
 	}//sorry
+	else l('whole').style.background='#ccc';
 
+	if (T%30==0 && Loaded) document.title=Beautify(Cookies)+' cookies - Cookie Clicker';
 	Clicking=0;
 	Hovering=0;
 
-	if ((T)%(30*60)==0 && T>30*5 && Loaded) Save();
+	SaveTimer--;
+	if (SaveTimer==0 && Loaded) Save();
 
 	T++;
 	setTimeout(Main,1000/30);
