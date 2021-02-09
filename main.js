@@ -11,7 +11,7 @@ function eventFire(el, etype){
 function l(what) {return document.getElementById(what);}
 
 Game=l('game');
-Version=0.125;
+Version=0.1251;
 l('version').innerHTML='running v.'+Version;
 Loaded=0;
 
@@ -114,7 +114,12 @@ ImportResponse=function(response)
 
 Reset=function()
 {
-	if (confirm('Do you REALLY want to start over?')) ajax('backend.php?q=reset',ResetResponse);
+	if (confirm('Do you REALLY want to start over?'))
+	{
+		document.cookie='CookieClickerSave=0; expires=Fri, 3 Aug 2001 20:47:11 UTC;';
+		ResetResponse();
+	}
+	//ajax('backend.php?q=reset',ResetResponse);
 }
 ResetResponse=function()
 {
@@ -140,10 +145,18 @@ SaveTimer=30*60;
 Save=function()
 {
 	var str=MakeSaveString();
-	ajax('backend.php?q=save|'+str,SaveResponse);
-	SaveTimer=30*60*2;
-}
+	//ajax('backend.php?q=save|'+str,SaveResponse);
 
+	var now=new Date();//we storin dis for 5 years, people
+	now.setFullYear(now.getFullYear()+5);//mmh stale cookies
+	str='CookieClickerSave='+escape(str)+'; expires='+now.toUTCString()+';';
+	document.cookie=str;//aaand save
+	//alert(document.cookie);
+	if (document.cookie.indexOf('CookieClickerSave')<0) Pop('credits','<span style="color:#f00;">Error while saving.<br>Export your save instead!</span>');
+	else Pop('credits','Saved');
+
+	SaveTimer=30*60;
+}
 SaveResponse=function(response)
 {
 	var r=response.split('|');
@@ -158,7 +171,10 @@ SaveResponse=function(response)
 
 Load=function()
 {
-	ajax('backend.php?q=load',LoadResponse);
+	var str='0';
+	if (document.cookie.indexOf('CookieClickerSave')>=0) str='1|'+unescape(document.cookie.split('CookieClickerSave=')[1]);//get cookie here
+	//ajax('backend.php?q=load',LoadResponse);
+	LoadResponse(str);
 	l('comment').innerHTML='Loading cookie...';
 	//LoadResponse(CookieSave);
 }
